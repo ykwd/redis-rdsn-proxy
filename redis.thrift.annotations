@@ -1,0 +1,8 @@
+[service.redis]
+stateful = true
+
+[function.redis.write]
+write = true
+
+[function.redis.read]
+write = false
