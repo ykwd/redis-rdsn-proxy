@@ -4,9 +4,10 @@
 
 
 # include "thrift/redis_types.h" 
-# include "thrift/redis.h"
 
+using namespace dsn;
 
 namespace redisproxy { 
+    GENERATED_TYPE_SERIALIZATION(batch_string, THRIFT)
 
 } 

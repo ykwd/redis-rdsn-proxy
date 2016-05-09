@@ -7,7 +7,7 @@
 namespace redisproxy {
     class redis_service
         :public dsn::replicated_service_app_type_1,
-         public dsn::serverlet< redis_service>
+        public dsn::serverlet< redis_service>
     {
     public:
         redis_service() : serverlet< redis_service>("redis"), _app_info(nullptr), redisProcess(nullptr), port(0)
@@ -36,17 +36,45 @@ namespace redisproxy {
             reply(redis.unwrap().command(args).inspect());
         }
 
+        // RPC_REDIS_REDIS_BATCH_WRITE 
+        virtual void on_batch_write(const batch_string& args, ::dsn::rpc_replier< batch_string>& reply)
+        {
+            dsn::service::zauto_lock _(_lock);
+            batch_string resp;
+            for (auto& arg : args.values)
+            {
+                resp.values.push_back(redis.unwrap().command(arg).inspect());
+            }
+            reply(resp);
+        }
+
+        // RPC_REDIS_REDIS_BATCH_READ 
+        virtual void on_batch_read(const batch_string& args, ::dsn::rpc_replier< batch_string>& reply)
+        {
+            dsn::service::zauto_lock _(_lock);
+            batch_string resp;
+            for (auto& arg : args.values)
+            {
+                resp.values.push_back(redis.unwrap().command(arg).inspect());
+            }
+            reply(resp);
+        }
+
     public:
         void open_service(dsn_gpid gpid)
         {
             this->register_async_rpc_handler(RPC_REDIS_REDIS_WRITE, "write", &redis_service::on_write, gpid);
             this->register_async_rpc_handler(RPC_REDIS_REDIS_READ, "read", &redis_service::on_read, gpid);
+            this->register_async_rpc_handler(RPC_REDIS_REDIS_BATCH_WRITE, "batch_write", &redis_service::on_batch_write, gpid);
+            this->register_async_rpc_handler(RPC_REDIS_REDIS_BATCH_READ, "batch_read", &redis_service::on_batch_read, gpid);
         }
 
         void close_service(dsn_gpid gpid)
         {
             this->unregister_rpc_handler(RPC_REDIS_REDIS_WRITE, gpid);
             this->unregister_rpc_handler(RPC_REDIS_REDIS_READ, gpid);
+            this->unregister_rpc_handler(RPC_REDIS_REDIS_BATCH_WRITE, gpid);
+            this->unregister_rpc_handler(RPC_REDIS_REDIS_BATCH_READ, gpid);
             redis.reset();
         }
 
@@ -54,13 +82,21 @@ namespace redisproxy {
         dsn_app_info*        _app_info;
 
         const char* data_dir() const
-        { return _app_info->data_dir; }
+        {
+            return _app_info->data_dir;
+        }
         int64_t last_committed_decree() const
-        { return _app_info->info.type1.last_committed_decree; }
+        {
+            return _app_info->info.type1.last_committed_decree;
+        }
         int64_t last_durable_decree() const
-        { return _app_info->info.type1.last_durable_decree; }
+        {
+            return _app_info->info.type1.last_durable_decree;
+        }
         void    set_last_durable_decree(int64_t d) const
-        { _app_info->info.type1.last_durable_decree = d; }
+        {
+            _app_info->info.type1.last_durable_decree = d;
+        }
 
 
         dsn::error_code start(int /*argc*/, char** /*argv*/) override
@@ -105,7 +141,7 @@ namespace redisproxy {
             char name[256];
             sprintf(name, "%s/checkpoint.%" PRId64, data_dir(),
                 last_committed_decree()
-            );
+                );
             dsn::service::zauto_lock l(_lock);
 
             if (last_committed_decree() == last_durable_decree())
@@ -113,7 +149,7 @@ namespace redisproxy {
                 dassert(dsn::utils::filesystem::file_exists(name),
                     "checkpoint file %s is missing!",
                     name
-                );
+                    );
                 return dsn::ERR_OK;
             }
 
@@ -129,14 +165,14 @@ namespace redisproxy {
             void*   /*learn_request*/,
             int     /*learn_request_size*/,
             /* inout */ app_learn_state& state
-        ) override {
+            ) override {
             if (last_durable_decree() > 0)
             {
                 char name[256];
                 sprintf(name, "%s/checkpoint.%" PRId64,
                     data_dir(),
                     last_durable_decree()
-                );
+                    );
 
                 state.from_decree_excluded = 0;
                 state.to_decree_included = last_durable_decree();
@@ -163,7 +199,7 @@ namespace redisproxy {
             {
                 std::ofstream config_ofstream(config_file_path.c_str());
                 config_ofstream << "dbfilename " << load_filename << std::endl;
-                config_ofstream << "dir " << data_dir() << std::endl;                
+                config_ofstream << "dir " << data_dir() << std::endl;
                 port = dsn_random64(10000, 60000);
                 config_ofstream << "port " << port;
             }
@@ -203,7 +239,7 @@ namespace redisproxy {
             redis.reset();
         }
 
-        dsn::error_code apply_checkpoint(const dsn_app_learn_state& state, dsn_chkpt_apply_mode mode) override 
+        dsn::error_code apply_checkpoint(const dsn_app_learn_state& state, dsn_chkpt_apply_mode mode) override
         {
 
             dsn::service::zauto_lock _(_lock);
@@ -220,9 +256,9 @@ namespace redisproxy {
 
             char name[256];
             sprintf(name, "%s/checkpoint.%" PRId64,
-                    data_dir(),
-                    state.to_decree_included
-            );
+                data_dir(),
+                state.to_decree_included
+                );
             std::string lname(name);
 
             if (!dsn::utils::filesystem::rename_path(state.files[0], lname))

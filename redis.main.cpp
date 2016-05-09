@@ -2,11 +2,13 @@
 # include "redis.app.example.h"
 
 # include <dsn/cpp/replicated_service_app.h>
+
 #define DSN_RUN_USE_SVCHOST
+
 void dsn_app_registration_redis()
 {
 
-    dsn::register_app_with_type_1_replication_support< ::redisproxy::redis_service>("redis");
+    dsn::register_app_with_type_1_replication_support< ::redisproxy::redis_service>("server");
     // register all possible service apps
     // dsn::register_app< ::redisproxy::redis_server_app>("server");
     dsn::register_app< ::redisproxy::redis_client_app>("client");

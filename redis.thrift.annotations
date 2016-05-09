@@ -6,3 +6,9 @@ write = true
 
 [function.redis.read]
 write = false
+
+[function.redis.batch_write]
+write = true
+
+[function.redis.batch_read]
+write = false
